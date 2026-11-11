@@ -1,0 +1,90 @@
+name: Windows EXE release
+
+on:
+  push:
+    branches:
+      - release/hyrule-builder
+    tags:
+      - v0.5.0-beta.1
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out Hyrule
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install packager
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller==6.12.0
+      - name: Run tests
+        shell: pwsh
+        run: python -m unittest discover -s tests -v
+      - name: Check pinned Hookshot source compatibility
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch v2.0.14 https://github.com/NotRexed/Hookshot.git Hookshot
+          python -c "from pathlib import Path; from hyrulefast.integration import patch_hookshot; p=Path('Hookshot'); assert patch_hookshot(p); assert not patch_hookshot(p); print('Hookshot v2.0.14 patch smoke test passed')"
+      - name: Build single-file EXE
+        shell: pwsh
+        run: |
+          pyinstaller launcher.py --onefile --windowed --clean --noconfirm --name HyruleBuilder --paths . --add-data "hyrulefast/pollpass.py;hyrulefast"
+          if (!(Test-Path dist/HyruleBuilder.exe)) { throw "HyruleBuilder.exe was not produced" }
+      - name: Test packaged EXE entry point
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath (Resolve-Path .\dist\HyruleBuilder.exe) -ArgumentList "--self-test" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged EXE self-test failed with exit code $($process.ExitCode)" }
+      - name: Test EXE bootstrap and real compiler CLI
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath (Resolve-Path .\dist\HyruleBuilder.exe) -ArgumentList "--bootstrap-check" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            $log = Join-Path $env:LOCALAPPDATA "HyruleBuilder\bootstrap-selftest.log"
+            if (Test-Path $log) { Get-Content $log }
+            throw "Packaged EXE bootstrap check failed with exit code $($process.ExitCode)"
+          }
+          Get-Content (Join-Path $env:LOCALAPPDATA "HyruleBuilder\bootstrap-selftest.log")
+      - name: Create checksums
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash .\dist\HyruleBuilder.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  HyruleBuilder.exe" | Set-Content .\dist\SHA256SUMS -Encoding ascii
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HyruleBuilder-Windows-x64
+          path: |
+            dist/HyruleBuilder.exe
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Hyrule Builder v0.5.0-beta.1
+          prerelease: true
+          draft: false
+          body: |
+            First packaged Windows setup release for Hyrule Native Compiler.
+            - One-file HyruleBuilder.exe; no separate Python installation.
+            - Downloads official Hookshot v2.0.14 build tools on first launch and verifies their SHA-256 checksums.
+            - Applies the Hyrule poll-pass and GPU-aware Vulkan worker patches.
+            - Requires the user's own supported game dump; no game data is included.
+            The workflow verifies the EXE bootstrap and compiler CLI. It cannot perform a full game build without a user's private dump.
+            Radeon 680M runtime compatibility and target-hardware performance remain unverified.
+          files: |
+            dist/HyruleBuilder.exe
+            dist/SHA256SUMS
