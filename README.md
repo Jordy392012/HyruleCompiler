@@ -1,21 +1,33 @@
-# Hyrule Native Compiler — Optimization Lab (0.4.0)
+# Hyrule Native Compiler — Optimization Lab (0.6.0-beta.1)
 
 Hyrule is an optimization overlay for the local Hookshot static recompilation project. It does not include game assets, keys, ROMFS, executable dumps, or built game output.
 
 ## Windows executable
 
-The Hyrule Windows setup application is available from the [GitHub Releases page](https://github.com/Jordy392012/HyruleNativeCompiler/releases).
-It is a single-file HyruleBuilder.exe; on first launch it downloads the official Hookshot v2.0.14 compiler packages and verifies their
+The Hyrule Windows setup application is available from the [GitHub Releases page](https://github.com/Jordy392012/HyruleCompiler/releases).
+It is a single-file HyruleBuilder.exe; on first launch it downloads the official Hookshot v2.1.0 compiler packages and verifies their
 SHA-256 checksums before building locally. No separate Python installation is required.
 
 The application needs the supported Switch 2 game dump in .nup format or both romfs and exefs folders. It does not accept an original
 N64 .z64 ROM and does not include or upload copyrighted game files. See docs/BUILD_WINDOWS.md for requirements and instructions.
 
+## Renderer fixes included from Hookshot 2.1.0
+
+The Windows builder now installs the official Hookshot v2.1.0 toolchain. That upstream release includes fixes for publishing
+texture-upload staging memory before GPU reads, retrying transient texture image-view failures instead of retaining a null
+view, and recovering from background resource-job failures. It also fixes cutscene/movie cue timing when the frame cap is
+above 60 FPS. These changes address several failure modes that can look like missing cutscene textures or intermittent
+renderer failures.
+
+Hyrule does not reimplement those renderer fixes: it pins the corrected upstream release and keeps its own checked compiler
+and worker-scheduling patches. The Radeon 680M still needs a real in-game cutscene test; CI cannot prove driver-specific
+stability or visual correctness.
+
 ## Scope
 
 Hookshot supplies the ARM64-to-x86-64 lifter and Vulkan renderer. Hyrule adds checked integration for a profile-hot generated-C poll pass, CPU-target tuning, a GPU-pressure-aware background worker governor, and repeatable A/B profiling. It is not a replacement ARM64 decoder, instruction selector, register allocator, or Vulkan backend.
 
-## Implemented in v0.4.0
+## Hyrule optimization features
 
 - Profile-hot-function-scoped loop-poll decimation. Interval 1 preserves upstream polling; larger intervals are experimental and may delay guest thread handoff.
 - Checked installer with source anchors and backups for every modified Hookshot source file.

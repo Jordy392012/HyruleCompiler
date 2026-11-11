@@ -4,8 +4,9 @@ on:
   push:
     branches:
       - release/hyrule-builder
+      - upgrade/hookshot-2.1.0
     tags:
-      - v0.5.0-beta.1
+      - v0.6.0-beta.1
   workflow_dispatch:
 
 permissions:
@@ -34,8 +35,8 @@ jobs:
       - name: Check pinned Hookshot source compatibility
         shell: pwsh
         run: |
-          git clone --depth 1 --branch v2.0.14 https://github.com/NotRexed/Hookshot.git Hookshot
-          python -c "from pathlib import Path; from hyrulefast.integration import patch_hookshot; p=Path('Hookshot'); assert patch_hookshot(p); assert not patch_hookshot(p); print('Hookshot v2.0.14 patch smoke test passed')"
+          git clone --depth 1 --branch v2.1.0 https://github.com/NotRexed/Hookshot.git Hookshot
+          python -c "from pathlib import Path; from hyrulefast.integration import patch_hookshot; p=Path('Hookshot'); assert patch_hookshot(p); assert not patch_hookshot(p); print('Hookshot v2.1.0 patch smoke test passed')"
       - name: Build single-file EXE
         shell: pwsh
         run: |
@@ -74,17 +75,20 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          name: Hyrule Builder v0.5.0-beta.1
+          name: Hyrule Builder v0.6.0-beta.1
           prerelease: true
           draft: false
           body: |
-            First packaged Windows setup release for Hyrule Native Compiler.
+            Hyrule Builder 0.6.0-beta.1 upgrades the pinned compiler toolchain to official Hookshot v2.1.0.
             - One-file HyruleBuilder.exe; no separate Python installation.
-            - Downloads official Hookshot v2.0.14 build tools on first launch and verifies their SHA-256 checksums.
-            - Applies the Hyrule poll-pass and GPU-aware Vulkan worker patches.
+            - Downloads official Hookshot v2.1.0 build tools and verifies each package's SHA-256 checksum.
+            - Applies Hyrule's checked poll-pass and adaptive Vulkan background-worker patches.
+            - Includes upstream Hookshot 2.1.0 renderer fixes for texture staging visibility, transient image-view failures,
+              background resource-job failure handling, and cutscene/movie cue timing above a 60 FPS cap.
             - Requires the user's own supported game dump; no game data is included.
-            The workflow verifies the EXE bootstrap and compiler CLI. It cannot perform a full game build without a user's private dump.
-            Radeon 680M runtime compatibility and target-hardware performance remain unverified.
+            CI checks patch compatibility/idempotence, the packaged EXE, tool-package integrity, and compiler CLI startup.
+            It cannot run a game without the user's private dump. Radeon 680M cutscene stability and performance still need
+            an in-game test on the target PC; these upstream fixes are not a guarantee that every driver-specific issue is gone.
           files: |
             dist/HyruleBuilder.exe
             dist/SHA256SUMS

@@ -1,12 +1,12 @@
 {
   "repository": "NotRexed/Hookshot",
-  "source_tag": "v2.0.14",
-  "source_tag_object": "c54510d7a335537743c30b3a9cf5203c90cbd9e1",
+  "source_tag": "v2.1.0",
+  "source_tag_object": "8ef84611049f4fc31835a0b12793cf074ed49c3c",
   "files": {
     "nx2/poll.py": "c467334c1094342d3fed4a1a310c624f3865678d",
-    "gpu/vk/vk_jobs.cpp": "0ca5cc90fdd1e0dd8c585f243cacd2a3128f99ea",
-    "gpu/vk/vk_jobs.h": "f2ac15b676451951ffc5e1750fb53744360770be",
-    "gpu/vk/vk_replay.cpp": "cf5db3c9aab959a0ab23ad2b503ee8bfd02305f1"
+    "gpu/vk/vk_jobs.cpp": "a73f72895c2f520f542b4142bb012ca0fa105776",
+    "gpu/vk/vk_jobs.h": "6c5c7e41c0110b9c3d0e32f50d59fef2bd405e78",
+    "gpu/vk/vk_replay.cpp": "7b2934f6d35628b1656890d351ab0b1b1c53a94e"
   },
-  "note": "The v0.5.0-beta.1 launcher pins Hookshot v2.0.14. Integration was tested by applying Hyrule's checked patch to a clean v2.0.14 source tree."
+  "note": "Hyrule Builder 0.6.0-beta.1 pins Hookshot v2.1.0. CI applies the checked poll-pass and Vulkan worker patches to a clean v2.1.0 checkout and verifies idempotence. The vendored setup_parts.py and paths.py are byte-for-byte the v2.1.0 upstream files, with a separate Hyrule provenance note."
 }

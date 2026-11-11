@@ -5,7 +5,7 @@ from hyrule_builder.runtime import HOOKSHOT_TAG, SUPPORTED_LANGUAGES, app_data_r
 
 class RuntimeTests(unittest.TestCase):
     def test_supported_upstream_pin(self):
-        self.assertEqual(HOOKSHOT_TAG,"v2.0.14")
+        self.assertEqual(HOOKSHOT_TAG,"v2.1.0")
     def test_cpu_target_is_only_set_for_known_zen3_models(self):
         self.assertEqual(cpu_target_from_name("AMD Ryzen 7 6800H with Radeon Graphics"),"znver3")
         self.assertIsNone(cpu_target_from_name("AMD Ryzen 7 7840HS"))
