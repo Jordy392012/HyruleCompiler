@@ -17,7 +17,20 @@ try {
     $env:A64_POLL_INTERVAL = [string]$PollInterval
     $env:A64_POLL_HOT_ONLY = '1'
     $env:RX_HOT_OPT = $HotOptimization
-    if ($CpuTarget -eq 'auto') { Remove-Item Env:RX_MARCH -ErrorAction SilentlyContinue } else { $env:RX_MARCH = $CpuTarget }
+    $resolvedCpuTarget = $CpuTarget
+    if ($CpuTarget -eq 'auto') {
+        $cpuName = ''
+        try {
+            $cpuName = (Get-CimInstance -ClassName Win32_Processor | Select-Object -First 1 -ExpandProperty Name)
+        } catch {
+            Write-Warning 'Could not read CPU model; Hookshot will use its CPUID-based generic target selection.'
+        }
+        # Ryzen 6000 mobile is Zen 3+; these Ryzen 5000 parts are Zen 3 (not the Zen 2 5500U/5700U).
+        if ($cpuName -match '(?i)Ryzen.*(6600H|6600HS|6600U|6800H|6800HS|6800U|6900HS|6900HX|6980HX|5600H|5600HS|5600X|5700G|5800H|5800HS|5800X|5900HX|5900X|5950X)') {
+            $resolvedCpuTarget = 'znver3'
+        }
+    }
+    if ($resolvedCpuTarget -eq 'auto') { Remove-Item Env:RX_MARCH -ErrorAction SilentlyContinue } else { $env:RX_MARCH = $resolvedCpuTarget }
     if ($PgoProfile) {
         $pgo = (Resolve-Path $PgoProfile).Path
         $env:RX_PGO = $pgo
@@ -27,7 +40,7 @@ try {
     Write-Host "Building Hookshot with Hyrule settings:" -ForegroundColor Cyan
     Write-Host "  hot-loop poll interval: $PollInterval (profile-hot functions only)"
     Write-Host "  hot function optimization: $HotOptimization"
-    Write-Host "  CPU code generation target: $CpuTarget"
+    Write-Host "  CPU code generation target: $resolvedCpuTarget"
     Write-Host "  PGO profile: $(if ($PgoProfile) {$PgoProfile} else {'upstream/default profile'})"
     & python -I nx2/make_game.py --update $game
     if ($LASTEXITCODE -ne 0) { throw "Hookshot build failed with exit code $LASTEXITCODE" }
@@ -36,7 +49,7 @@ try {
         "poll_interval=$PollInterval"
         "poll_hot_only=1"
         "hot_optimization=$HotOptimization"
-        "cpu_target=$CpuTarget"
+        "cpu_target=$resolvedCpuTarget"
         "pgo_profile=$PgoProfile"
         "built_at=$(Get-Date -Format o)"
     ) | Set-Content -Encoding UTF8 $stamp

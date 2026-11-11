@@ -1,0 +1,147 @@
+--- a/gpu/vk/vk_jobs.cpp
++++ b/gpu/vk/vk_jobs.cpp
+@@ -4,6 +4,8 @@
+ #include <atomic>
+ #include <exception>
+ #include <condition_variable>
++#include <cmath>
++#include <cstdlib>
+ #include <deque>
+ #include <mutex>
+ #include <thread>
+@@ -24,7 +26,35 @@
+ };
+ std::deque<Entry> queue;
+ std::atomic<int> pending{0};
++std::atomic<unsigned> base_workers{0};
++std::atomic<unsigned> target_workers{0};
++unsigned active_workers = 0;   // (mu held)
+ bool started = false;
++
++// HYRULE_ADAPTIVE_WORKERS_V1: background compilation stays asynchronous, but
++// concurrency follows measured GPU pressure rather than a fixed worker count.
++bool integrated_gpu() {
++    return dev.props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
++}
++
++unsigned configured_worker_count() {
++    static const unsigned count = [] {
++        if (const char* raw = std::getenv("RX_VK_WORKERS")) {
++            char* end = nullptr;
++            const unsigned long requested = std::strtoul(raw, &end, 10);
++            if (end != raw && end && *end == '\0' && requested >= 1 && requested <= 8)
++                return static_cast<unsigned>(requested);
++            logf("vk: RX_VK_WORKERS='%s' is invalid (use 1..8); automatic worker budget selected", raw);
++        }
++        const unsigned logical = std::max(1u, std::thread::hardware_concurrency());
++        const bool igpu = integrated_gpu();
++        const unsigned divisor = igpu ? 4u : 3u;
++        const unsigned ceiling = igpu ? 4u : 6u;
++        return std::clamp((logical + divisor - 1u) / divisor, 2u, ceiling);
++    }();
++    return count;
++}
++
+ 
+ // (a job that throws: the game ended at once ("approach Malon, crash": an exception escaped a worker, KERNELBASE's RaiseException
+ // with no handler, 2026-11-08). Resource jobs publish failure before the exception is logged, so their waiters finish.)
+@@ -62,18 +92,29 @@
+         std::function<void()> fn;
+         {
+             std::unique_lock lk(mu);
+-            work_cv.wait(lk, [] { return !queue.empty(); });
++            work_cv.wait(lk, [] {
++                return !queue.empty() &&
++                       active_workers < target_workers.load(std::memory_order_relaxed);
++            });
+             fn = std::move(queue.front().fn);
+             queue.pop_front();
++            active_workers++;
+         }
+         run_guarded(fn);
+-        pending--;
++        {
++            std::lock_guard lk(mu);
++            active_workers--;
++            pending--;
++        }
++        work_cv.notify_all();
+         jobs_notify();
+     }
+ }
+ 
+ void start() {
+-    const unsigned n = std::clamp(std::thread::hardware_concurrency() / 3, 2u, 4u);
++    const unsigned n = configured_worker_count();
++    base_workers.store(n, std::memory_order_relaxed);
++    target_workers.store(n, std::memory_order_relaxed);
+     for (unsigned i = 0; i < n; i++) std::thread(worker).detach();
+     started = true;
+     logf("vk: %u background workers (shader translation, pipelines)", n);
+@@ -122,6 +163,39 @@
+     sq.push_back(std::move(fn));
+     scv.notify_one();
+ }
++// HYRULE_ADAPTIVE_WORKERS_V1: GPU timestamps throttle shader/pipeline work when rendering is saturated.
++void jobs_set_gpu_pressure(double gpu_ms, double frame_ms) {
++    static const bool adaptive = [] {
++        const char* value = std::getenv("RX_VK_ADAPTIVE_WORKERS");
++        return !value || std::atoi(value) != 0;
++    }();
++    if (!adaptive || !std::isfinite(gpu_ms) || !std::isfinite(frame_ms) ||
++        gpu_ms <= 0.0 || frame_ms <= 0.0)
++        return;
++
++    const unsigned base = base_workers.load(std::memory_order_relaxed);
++    if (!base) return;
++    const double pressure = gpu_ms / frame_ms;
++    const unsigned previous = target_workers.load(std::memory_order_relaxed);
++    unsigned desired = previous ? previous : base;
++    const unsigned reduction = integrated_gpu() ? 2u : 1u;
++
++    // Hysteresis prevents rapid worker-count oscillation.
++    if (pressure >= 0.92)
++        desired = std::max(1u, base > reduction ? base - reduction : 1u);
++    else if (pressure >= 0.80)
++        desired = std::max(1u, base - 1u);
++    else if (pressure <= 0.68)
++        desired = base;
++
++    if (desired != previous) {
++        target_workers.store(desired, std::memory_order_relaxed);
++        logf("vk: adaptive compiler workers %u -> %u (GPU busy estimate %.0f%%, RX_VK_ADAPTIVE_WORKERS=0 disables)",
++             previous, desired, pressure * 100.0);
++        work_cv.notify_all();
++    }
++}
++
+ void jobs_notify() {
+     std::lock_guard lk(mu);
+     done_cv.notify_all();
+--- a/gpu/vk/vk_jobs.h
++++ b/gpu/vk/vk_jobs.h
+@@ -19,6 +19,8 @@
+ /// Waits until flag is set by a job (which calls jobs_notify after setting it)
+ void jobs_wait(const std::atomic<bool>& flag);
+ void jobs_notify();
++/// HYRULE_ADAPTIVE_WORKERS_V1: throttle background builds from Vulkan GPU timestamps.
++void jobs_set_gpu_pressure(double gpu_ms, double frame_ms);
+ int jobs_pending();
+ 
+ } // namespace mkwvk
+--- a/gpu/vk/vk_replay.cpp
++++ b/gpu/vk/vk_replay.cpp
+@@ -2822,9 +2822,12 @@
+         static uint64_t l_made;
+         logf("vk: GPU time %.1f ms a frame (the longest submission %.1f ms); %.1f textures made a frame",
+              (st_gpu_ns - l_gpu) / 120.0 / 1e6, st_gpu_max_ns / 1e6, (texture_made() - l_made) / 120.0);
++        // HYRULE_ADAPTIVE_WORKERS_V1: feed the measured GPU/frame ratio to the worker pool.
++        const double gpu_ms = (st_gpu_ns - l_gpu) / 120.0 / 1e6;
++        jobs_set_gpu_pressure(gpu_ms, secs * 1000.0 / 120.0);
+         {   // (issue 109: the movie networks too slow on this card: left out from now on, vk_draw.cpp movie_networks_slow)
+             static const bool keep_all = getenv("RX_VK_NETWORK_KEEP") && !strcmp(getenv("RX_VK_NETWORK_KEEP"), "all");
+-            const double gpu_ms = (st_gpu_ns - l_gpu) / 120.0 / 1e6, draws = (d - l_d) / 120.0;
++            const double draws = (d - l_d) / 120.0;
+             if (!keep_all && gpu_ms > 40.0 && draws < 40.0 && !movie_networks_slow.exchange(true))
+                 logf("vk: %.0f ms of GPU time a frame for %.0f draws (a movie): its upscaler networks are left out from now on "
+                      "(a linear upscale; RX_VK_NETWORK_KEEP=all keeps them)", gpu_ms, draws);

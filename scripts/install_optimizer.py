@@ -17,11 +17,13 @@ def main() -> int:
     changed = patch_hookshot(args.hookshot_root)
     if changed:
         print(f"Installed into: {args.hookshot_root.resolve()}")
-        print("Backup: nx2/poll.py.hyrule-backup")
+        print("Backups: nx2/poll.py.hyrule-backup and gpu/vk/*.hyrule-backup")
     else:
         print("Already installed and up to date.")
     print("Safe default: A64_POLL_INTERVAL=1 (same polling behavior as upstream).")
     print("Experimental: interval 2/4/8/16, applied only to profile-hot functions by default.")
+    print("CPU governor: RX_VK_WORKERS=1..8; RX_VK_ADAPTIVE_WORKERS=0 disables GPU-pressure throttling.")
+    print("AVX2 capture copy: build with a compatible CPU target, then A/B RX_VK_CAPTURE_NT=1.")
     return 0
 
 if __name__ == "__main__":

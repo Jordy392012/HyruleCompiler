@@ -1,0 +1,12 @@
+{
+  "repository": "NotRexed/Hookshot",
+  "source_branch": "main",
+  "source_commit": "614ada32d0662fa965704e0a049f252f50cd0d7b",
+  "files": {
+    "nx2/poll.py": "c467334c1094342d3fed4a1a310c624f3865678d",
+    "gpu/vk/vk_jobs.cpp": "a73f72895c2f520f542b4142bb012ca0fa105776",
+    "gpu/vk/vk_jobs.h": "6c5c7e41c0110b9c3d0e32f50d59fef2bd405e78",
+    "gpu/vk/vk_replay.cpp": "7b2934f6d35628b1656890d351ab0b1b1c53a94e"
+  },
+  "note": "Installer source anchors and patches were verified against these exact files from Hookshot main."
+}
