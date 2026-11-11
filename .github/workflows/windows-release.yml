@@ -44,16 +44,16 @@ jobs:
       - name: Test packaged EXE entry point
         shell: pwsh
         run: |
-          & .\dist\HyruleBuilder.exe --self-test
-          if ($LASTEXITCODE -ne 0) { throw "Packaged EXE self-test failed with exit code $LASTEXITCODE" }
+          $process = Start-Process -FilePath (Resolve-Path .\dist\HyruleBuilder.exe) -ArgumentList "--self-test" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged EXE self-test failed with exit code $($process.ExitCode)" }
       - name: Test EXE bootstrap and real compiler CLI
         shell: pwsh
         run: |
-          & .\dist\HyruleBuilder.exe --bootstrap-check
-          if ($LASTEXITCODE -ne 0) {
+          $process = Start-Process -FilePath (Resolve-Path .\dist\HyruleBuilder.exe) -ArgumentList "--bootstrap-check" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
             $log = Join-Path $env:LOCALAPPDATA "HyruleBuilder\bootstrap-selftest.log"
             if (Test-Path $log) { Get-Content $log }
-            throw "Packaged EXE bootstrap check failed with exit code $LASTEXITCODE"
+            throw "Packaged EXE bootstrap check failed with exit code $($process.ExitCode)"
           }
           Get-Content (Join-Path $env:LOCALAPPDATA "HyruleBuilder\bootstrap-selftest.log")
       - name: Create checksums
