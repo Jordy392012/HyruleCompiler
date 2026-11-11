@@ -39,7 +39,7 @@ jobs:
       - name: Build single-file EXE
         shell: pwsh
         run: |
-          pyinstaller launcher.py --onefile --windowed --clean --noconfirm --name HyruleBuilder --paths .
+          pyinstaller launcher.py --onefile --windowed --clean --noconfirm --name HyruleBuilder --paths . --add-data "hyrulefast/pollpass.py;hyrulefast"
           if (!(Test-Path dist/HyruleBuilder.exe)) { throw "HyruleBuilder.exe was not produced" }
       - name: Test packaged EXE entry point
         shell: pwsh
