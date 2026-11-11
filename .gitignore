@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.profraw
+*.profdata
+*.csv
+*.exe
+*.dll
+*.nup
+*.nsp
+*.xci
+*.romfs/
+*.exefs/
+work/
+profiles/
+hyrule_build_variant.txt
