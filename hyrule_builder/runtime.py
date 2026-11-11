@@ -4,7 +4,7 @@ import os, re, subprocess, sys
 from pathlib import Path
 from typing import Mapping
 
-HOOKSHOT_TAG = "v2.0.14"
+HOOKSHOT_TAG = "v2.1.0"
 SUPPORTED_LANGUAGES = ("en-US", "en-GB", "fr", "fr-CA", "de", "it", "es", "es-419", "pt-BR", "nl", "pl", "ru", "ja", "ko", "zh-Hans", "zh-Hant")
 
 def app_data_root(environ: Mapping[str, str] | None = None) -> Path:

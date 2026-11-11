@@ -29,7 +29,7 @@ def self_test():
     try:
         import hyrulefast.integration
         from .vendor.hookshot_builder import setup_parts,paths
-        assert __version__=="0.5.0-beta.1" and HOOKSHOT_TAG=="v2.0.14"
+        assert __version__=="0.6.0-beta.1" and HOOKSHOT_TAG=="v2.1.0"
         assert callable(hyrulefast.integration.patch_hookshot) and callable(setup_parts.install) and callable(paths.base)
         assert "en-US" in SUPPORTED_LANGUAGES
         return 0
