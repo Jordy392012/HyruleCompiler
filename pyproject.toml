@@ -1,6 +1,6 @@
 [project]
 name = "hyrule-native-compiler"
-version = "0.3.0"
+version = "0.4.0"
 description = "Experimental optimization and profiling overlay for Hookshot static recompilation"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }

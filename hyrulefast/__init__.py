@@ -1,3 +1,3 @@
 """Hyrule Native Compiler experimental optimization overlay."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

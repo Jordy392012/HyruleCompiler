@@ -1,8 +1,8 @@
-"""Install the Hyrule poll optimization into a local Hookshot source checkout.
+"""Install Hyrule's compiler pass and adaptive worker governor into Hookshot.
 
-The integration is intentionally a small, checked source patch rather than
-copying or redistributing Hookshot. It fails closed when upstream has moved
-the expected hook, so it cannot silently corrupt a different version.
+The integration is a checked source patch rather than copying or redistributing
+Hookshot. It fails closed when upstream has moved an expected hook and saves
+backups before changing the local checkout.
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import shutil
 from pathlib import Path
 
 from . import __version__
+from .worker_patch import patch_cpu_governor
 
 MARKER = "HYRULE_POLL_DECIMATION_V1"
 
@@ -76,10 +77,11 @@ def patch_hookshot(root: Path) -> bool:
     helper_path = root / "nx2" / "hyrule_pollpass.py"
 
     if MARKER in source:
-        if not helper_path.is_file() or helper_path.read_text(encoding="utf-8") != helper_src:
-            helper_path.write_text(helper_src, encoding="utf-8", newline="\n")
-            return True
-        return False
+        worker_changed = patch_cpu_governor(root) if (root / "gpu" / "vk" / "vk_jobs.cpp").is_file() else False
+        helper_changed = not helper_path.is_file() or helper_path.read_text(encoding="utf-8") != helper_src
+        if helper_changed:
+            helper_path.write_text(helper_src, encoding="utf-8", newline="\\n")
+        return helper_changed or worker_changed
 
     if source.count(IMPORT_ANCHOR) != 1:
         raise RuntimeError("nx2/poll.py import block differs from the supported Hookshot source; no files were changed")
@@ -108,6 +110,9 @@ def patch_hookshot(root: Path) -> bool:
             or patched.count("poll_interval, poll_hot_only, poll_hot_functions = _hyrule_poll_configuration()") != 1):
         raise RuntimeError("internal patch verification failed; no files were changed")
 
+    # Validate and patch the Vulkan worker pool before changing nx2/poll.py.
+    if (root / "gpu" / "vk" / "vk_jobs.cpp").is_file():
+        patch_cpu_governor(root)
     helper_path.write_text(helper_src, encoding="utf-8", newline="\n")
     backup = poll_path.with_suffix(".py.hyrule-backup")
     if not backup.exists():

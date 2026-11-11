@@ -43,6 +43,7 @@ def report(path: Path, discard_seconds: float) -> dict[str, float | int]:
     return {
         "frames": len(ms),
         "median_fps": 1000.0 / median_ms,
+        "median_frame_ms": median_ms,
         "one_percent_low_fps": 1000.0 / p99_ms,
         "p95_frame_ms": p95_ms,
         "p99_frame_ms": p99_ms,
@@ -60,6 +61,7 @@ def main() -> int:
     print(f"Log: {a.log}")
     print(f"Frames analyzed: {result['frames']}")
     print(f"Median FPS: {result['median_fps']:.2f}")
+    print(f"Median frame time: {result['median_frame_ms']:.2f} ms")
     print(f"1% low FPS (from p99 frame time): {result['one_percent_low_fps']:.2f}")
     print(f"P95 / P99 frame time: {result['p95_frame_ms']:.2f} / {result['p99_frame_ms']:.2f} ms")
     print(f"Mean frame time: {result['mean_frame_ms']:.2f} ms")

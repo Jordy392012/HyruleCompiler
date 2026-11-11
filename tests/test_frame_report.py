@@ -20,6 +20,7 @@ class FrameReportTests(unittest.TestCase):
             result = report(path, 1.0)
             self.assertEqual(result["frames"], 3)
             self.assertAlmostEqual(result["median_fps"], 62.5)
+            self.assertAlmostEqual(result["median_frame_ms"], 16.0)
             self.assertAlmostEqual(result["one_percent_low_fps"], 50.0)
 
 
