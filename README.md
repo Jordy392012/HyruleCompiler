@@ -2,6 +2,15 @@
 
 Hyrule is an optimization overlay for the local Hookshot static recompilation project. It does not include game assets, keys, ROMFS, executable dumps, or built game output.
 
+## Windows executable
+
+The Hyrule Windows setup application is available from the [GitHub Releases page](https://github.com/Jordy392012/HyruleNativeCompiler/releases).
+It is a single-file HyruleBuilder.exe; on first launch it downloads the official Hookshot v2.0.14 compiler packages and verifies their
+SHA-256 checksums before building locally. No separate Python installation is required.
+
+The application needs the supported Switch 2 game dump in .nup format or both romfs and exefs folders. It does not accept an original
+N64 .z64 ROM and does not include or upload copyrighted game files. See docs/BUILD_WINDOWS.md for requirements and instructions.
+
 ## Scope
 
 Hookshot supplies the ARM64-to-x86-64 lifter and Vulkan renderer. Hyrule adds checked integration for a profile-hot generated-C poll pass, CPU-target tuning, a GPU-pressure-aware background worker governor, and repeatable A/B profiling. It is not a replacement ARM64 decoder, instruction selector, register allocator, or Vulkan backend.
